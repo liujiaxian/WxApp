@@ -23,7 +23,7 @@ public class GetAccessToken
         string accesstoken = Getaccesstoken();
 
         //更新数据表
-        string usql = "update T_Configure set d_value='" + accesstoken + "' where d_id=11";
+        string usql = "update T_Configure set d_value='" + accesstoken + "',d_time='" + DateTime.Now.ToString() + "' where d_id=11";
         int u = OleDbHelper.ExecuteNonQuery(usql);
     }
 
@@ -88,7 +88,7 @@ public class GetAccessToken
     {
         //string appid = "wx171244033d376d33";
         //string secret = "24a09ab4fa89866b5d41a0cbbf8c18aa";
-       
+
         //查询appid
         string sql = "select * from T_Configure where d_id in(8,10)";
         DataTable tb = OleDbHelper.ExecuteDataTable(sql);

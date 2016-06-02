@@ -46,18 +46,94 @@ public partial class wxtest : System.Web.UI.Page
     /// </summary>
     /// <param name="sender"></param>
     /// <param name="e"></param>
+    protected string Appid = "";
+    protected string appsecret = "";
     protected void Page_Load(object sender, EventArgs e)
     {
-
-        if (Request.HttpMethod == "POST")
+        if (!IsPostBack)
         {
-            string weixin = "";
-            weixin = PostInput();//获取xml数据
-            if (!string.IsNullOrEmpty(weixin))
+            if (Request.HttpMethod == "POST")
             {
-                ResponseMsg(weixin);//调用消息适配器
+                //string weixin = "";
+                //weixin = PostInput();//获取xml数据
+                //if (!string.IsNullOrEmpty(weixin))
+                //{
+                //    ResponseMsg(weixin);//调用消息适配器
+                //}
+            }
+            if (Request["state"] == "userlogin")
+            {
+                string sqltoken = "select * from T_Configure";
+                DataTable tb = OleDbHelper.ExecuteDataTable(sqltoken);
+                string access_token = "";
+                if (tb.Rows.Count > 0)
+                {
+                    foreach (DataRow row in tb.Rows)
+                    {
+                        int id = Convert.ToInt32(row["d_id"]);
+                        if (id == 8)
+                        {
+                            Appid = row["d_value"].ToString();
+                        }
+                        if (id == 10)
+                        {
+                            appsecret = row["d_value"].ToString();
+                        }
+                        if (id == 11)
+                        {
+                            access_token = row["d_value"].ToString();
+                        }
+                    }
+                }
+
+
+                string code = Request["code"];
+                //post请求
+                string openinfo = HttpPost("https://api.weixin.qq.com/sns/oauth2/access_token?appid=" + Appid + "&secret=" + appsecret + "&code=" + code + "&grant_type=authorization_code", "");
+
+                GetOpenId open = JsonUtil.ParseFormJson<GetOpenId>(openinfo);
+
+                //刷新token
+                string newopeninfo = HttpPost("https://api.weixin.qq.com/sns/oauth2/refresh_token?appid=" + Appid + "&grant_type=refresh_token&refresh_token=" + open.refresh_token, "");
+
+                GetOpenId newopen = JsonUtil.ParseFormJson<GetOpenId>(newopeninfo);
+
+                string userinfo = HttpPost("https://api.weixin.qq.com/sns/userinfo?access_token=" + newopen.access_token + "&openid=" + newopen.openid + "&lang=zh_CN", "");
+
+
+
+
+                UserInfo item = JsonUtil.ParseFormJson<UserInfo>(userinfo);
+
+
+
+                //查询是否存在此用户
+                string selsql = "select count(*) from T_User where d_openid='" + item.openid + "'";
+                int sel = (int)OleDbHelper.ExecuteScalar(selsql);
+              
+                if (sel > 0)
+                {
+                    Page.RegisterStartupScript("test", "<script>alert('已存在！')</script>");
+                    return;
+                }
+                else
+                {
+                    string sql = "insert into T_User(d_openID,d_nickname,d_sex,d_province,d_city,d_country,d_headimgUrl,d_privilege) values('" + item.openid + "','" + item.nickname + "'," + item.sex + ",'" + item.province + "','" + item.city + "','" + item.country + "','" + item.headimgurl + "','" + item.privilege + "')";
+                    int m = OleDbHelper.ExecuteNonQuery(sql);
+                    if (m > 0)
+                    {
+                        Page.RegisterStartupScript("test", "<script>alert('获取成功！');</script>");
+                    }
+                    else
+                    {
+                        Page.RegisterStartupScript("test", "<script>alert('获取失败！')</script>");
+                        return;
+                    }
+                }
+
             }
         }
+
 
         //CityWeatherResponse myModel = JsonConvert.DeserializeJsonToObject<CityWeatherResponse>(HttpGet("广州"));
         //Response.Write(myModel.results.Length+"<br/>");
@@ -268,6 +344,17 @@ public partial class wxtest : System.Web.UI.Page
 
         return retString;
     }
+
+    public string HttpPost(string Url, string postDataStr)
+    {
+        System.Net.WebClient webc = new System.Net.WebClient();
+        var apiurl = new Uri(Url);
+        string sendstr = postDataStr;
+        webc.Headers.Add("Content-Type", "text/xml");
+        //webc.Headers["Content-Type"] = "application/stream;charset=utf-8";//OK  
+        var arr = webc.UploadData(apiurl, Encoding.UTF8.GetBytes(sendstr));
+        return Encoding.UTF8.GetString(arr);
+    }
     #endregion
 
     #region 将datetime.now 转换为 int类型的秒
@@ -429,8 +516,156 @@ public partial class wxtest : System.Web.UI.Page
     }
     #endregion
 
+    /// <summary>
+    /// 发送客服消息
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     protected void Button1_Click(object sender, EventArgs e)
     {
+        //查询accesstoken
+        string sql = "select * from T_Configure where d_id=11";
+        DataTable tb = OleDbHelper.ExecuteDataTable(sql);
+        string accessToken = "";
+        if (tb.Rows.Count > 0)
+        {
+            foreach (DataRow row in tb.Rows)
+            {
+                accessToken = row["d_value"].ToString();
+            }
+        }
+        if (string.IsNullOrEmpty(accessToken))
+        {
+            return;
+        }
 
+        string text = @"\n您今天的跟进提醒如下：  
+\r累计有9个分配待跟进客户；今日待回访客户有20名；逾期未跟进客户有20名；N日内到期客户有20名；  
+您今天的业务催办如下：  
+\r逾期未认购客户共计20名；逾期未签约客户15名；逾期未办理按揭客户15名；逾期未交款客户共计12名；  
+N日内到期款客户15名；  
+您今天的工作很充实，加油哦~";
+        string OPENID = "opC7fv5Yg-9iyCkxCM7uSaf5jz-U";
+        var data = "{ \"touser\":\"" + OPENID + "\", \"msgtype\":\"text\", \"text\": { \"content\":\"Hello World  " + TextBox2.Text.Trim() + "\" }}";
+        var json = HttpPost("https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token=" + accessToken, data);
+        Response.Write(json);
+        Response.End();
+    }
+    /// <summary>
+    /// 模版消息
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
+    protected void Button2_Click(object sender, EventArgs e)
+    {
+        //查询accesstoken
+        string sql = "select * from T_Configure where d_id=11";
+        DataTable tb = OleDbHelper.ExecuteDataTable(sql);
+        string accessToken = "";
+        if (tb.Rows.Count > 0)
+        {
+            foreach (DataRow row in tb.Rows)
+            {
+                accessToken = row["d_value"].ToString();
+            }
+        }
+        if (string.IsNullOrEmpty(accessToken))
+        {
+            return;
+        }
+        TemplateInfo temp = new TemplateInfo();
+        temp.template_id = "GsFRMUMSW_Fg5BJSBz6ynkFyrSlBTJAzkmO_bOZyDB8";
+        temp.touser = "opC7fv5Yg-9iyCkxCM7uSaf5jz-U";
+        temp.url = "http://weixin.qq.com/download";
+
+        temp.topcolor = "#FF0000";
+
+        Param p = new Param();
+        p.value = "黄先生";
+        p.color = "#173177";
+
+        p.value = DateTime.Now.ToString();
+        p.color = "#173177";
+
+        p.value = "0426";
+        p.color = "#173177";
+
+        p.value = "消费";
+        p.color = "#173177";
+
+        p.value = "人民币260.00元";
+        p.color = "#173177";
+
+        p.value = "06月07日19时24分";
+        p.color = "#173177";
+
+        p.value = "06月07日19时24分";
+        p.color = "#173177";
+
+        string data = JsonUtil.GetJson<TemplateInfo>(temp);
+        var json = HttpPost("https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=" + accessToken, data);
+        Response.Write(json);
+        Response.End();
+    }
+
+    /// <summary>
+    /// 群发消息
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
+    protected void Button3_Click(object sender, EventArgs e)
+    {
+        //查询accesstoken
+        string sql = "select * from T_Configure where d_id=11";
+        DataTable tb = OleDbHelper.ExecuteDataTable(sql);
+        string accessToken = "";
+        if (tb.Rows.Count > 0)
+        {
+            foreach (DataRow row in tb.Rows)
+            {
+                accessToken = row["d_value"].ToString();
+            }
+        }
+        if (string.IsNullOrEmpty(accessToken))
+        {
+            return;
+        }
+
+        //var data = "{\"filter\":{\"is_to_all\":false\"group_id\":\"2\"},\"text\":{\"content\":\"CONTENT\"},\"msgtype\":\"text\"}";
+        //var data = "{'touser': ['oR5Gjjl_eiZoUpGozMo7dbBJ362A', 'oR5Gjjo5rXlMUocSEXKT7Q5RQ63Q' ], 'msgtype': 'text', 'text': { 'content': 'hello from boxer.'}}";
+        var data = "{'articles': [{'thumb_media_id':'qI6_Ze_6PtV7svjolgs-rN6stStuHIjs9_DidOHaj0Q-mwvBelOXCFZiq2OsIU-p','author':'xxx','title':'Happy Day','content_source_url':'www.qq.com','content':'content','digest':'digest','show_cover_pic':'1'},{'thumb_media_id':'qI6_Ze_6PtV7svjolgs-rN6stStuHIjs9_DidOHaj0Q-mwvBelOXCFZiq2OsIU-p','author':'xxx','title':'Happy Day','content_source_url':'www.qq.com','content':'content','digest':'digest','show_cover_pic':'0'}]}";
+
+        var json = HttpPost("https://api.weixin.qq.com/cgi-bin/media/uploadnews?access_token=" + accessToken, data);
+        Response.Write(json);
+        Response.End();
+    }
+    /// <summary>
+    /// 获取用户信息
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
+    protected void Button4_Click(object sender, EventArgs e)
+    {
+        string sqltoken = "select * from T_Configure";
+        DataTable tb = OleDbHelper.ExecuteDataTable(sqltoken);
+        if (tb.Rows.Count > 0)
+        {
+            foreach (DataRow row in tb.Rows)
+            {
+                int id = Convert.ToInt32(row["d_id"]);
+                if (id == 8)
+                {
+                    Appid = row["d_value"].ToString();
+                }
+                if (id == 10)
+                {
+                    appsecret = row["d_value"].ToString();
+                }
+            }
+        }
+
+        string url = HttpUtility.UrlEncode(Request.Url.ToString());
+        Response.Redirect("https://open.weixin.qq.com/connect/oauth2/authorize?appid=" + Appid + "&redirect_uri="
+        + url + "&response_type=code&scope=snsapi_userinfo&state=userlogin#wechat_redirect");
     }
 }

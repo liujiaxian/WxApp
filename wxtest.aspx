@@ -18,6 +18,18 @@
         <br />
         <asp:Button ID="Button1" runat="server" Text="发送" Height="27px" 
             onclick="Button1_Click" Width="95px" />
+        <br />
+        <br />
+        <asp:Button ID="Button2" runat="server" Height="27px" onclick="Button2_Click" 
+            Text="模版消息" Width="95px" />
+        <br />
+        <br />
+        <asp:Button ID="Button3" runat="server" Height="27px" onclick="Button3_Click" 
+            Text="群发消息" Width="95px" />
+        <br />
+        <br />
+          <asp:Button ID="Button4" runat="server" Height="27px" onclick="Button4_Click" 
+            Text="用户登录" Width="95px" />
     </div>
     </form>
 </body>
