@@ -63,7 +63,8 @@ public partial class wxtest : System.Web.UI.Page
             }
             if (Request["state"] == "userlogin")
             {
-                string sqltoken = "select * from T_Configure";
+                #region 微信登录
+                 string sqltoken = "select * from T_Configure";
                 DataTable tb = OleDbHelper.ExecuteDataTable(sqltoken);
                 string access_token = "";
                 if (tb.Rows.Count > 0)
@@ -110,7 +111,7 @@ public partial class wxtest : System.Web.UI.Page
                 //查询是否存在此用户
                 string selsql = "select count(*) from T_User where d_openid='" + item.openid + "'";
                 int sel = (int)OleDbHelper.ExecuteScalar(selsql);
-              
+
                 if (sel > 0)
                 {
                     Page.RegisterStartupScript("test", "<script>alert('已存在！')</script>");
@@ -130,6 +131,7 @@ public partial class wxtest : System.Web.UI.Page
                         return;
                     }
                 }
+                #endregion
 
             }
         }
@@ -667,5 +669,83 @@ N日内到期款客户15名；
         string url = HttpUtility.UrlEncode(Request.Url.ToString());
         Response.Redirect("https://open.weixin.qq.com/connect/oauth2/authorize?appid=" + Appid + "&redirect_uri="
         + url + "&response_type=code&scope=snsapi_userinfo&state=userlogin#wechat_redirect");
+    }
+
+    /// <summary>
+    /// 创建菜单
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
+    protected void Button5_Click(object sender, EventArgs e)
+    {
+        StringBuilder sb = new StringBuilder();
+         string sql2="select * from T_Menu where d_pid=0";
+        DataTable mtb = OleDbHelper.ExecuteDataTable(sql2);
+        if (mtb.Rows.Count>0)
+        {
+            sb.Append("{\"button\":[");
+            int k = 0;
+            foreach (DataRow row in mtb.Rows)
+            {
+                int i = Convert.ToInt32(row["d_id"]);
+                string sql1 = "select * from T_Menu where d_pid="+i;
+                DataTable mtb1 = OleDbHelper.ExecuteDataTable(sql1);
+                k++;
+                if (mtb1.Rows.Count>0)//有二级菜单
+                {
+                    sb.Append("{");
+                    sb.Append("\"name\":\""+row["d_name"]+"\",");
+                    sb.Append("\"sub_button\":[");
+                    
+                    int j=0;
+                    foreach (DataRow item in mtb1.Rows)
+                    {
+                        j++;
+                        sb.Append("{\"type\":\""+item["d_type"]+"\",\"name\":\""+item["d_name"]+"\",\"url\":\""+item["d_content"]+"\"}");
+                        if (j!=mtb1.Rows.Count)
+                        {
+                            sb.Append(",");
+                        }
+                    }
+                    sb.Append("]}");
+                }
+                else
+                {
+                    sb.Append("{\"type\":\""+row["d_type"]+"\",\"name\":\""+row["d_name"]+"\",\"key\":\""+row["d_content"]+"\"}");
+                }
+                if (k != mtb.Rows.Count)
+                {
+                    sb.Append(",");
+                }
+            }
+            sb.Append("]}");
+        }
+
+        string sqltoken = "select * from T_Configure";
+        DataTable tb = OleDbHelper.ExecuteDataTable(sqltoken);
+        string access_token = "";
+        if (tb.Rows.Count > 0)
+        {
+            foreach (DataRow row in tb.Rows)
+            {
+                int id = Convert.ToInt32(row["d_id"]);
+                if (id == 8)
+                {
+                    Appid = row["d_value"].ToString();
+                }
+                if (id == 10)
+                {
+                    appsecret = row["d_value"].ToString();
+                }
+                if (id == 11)
+                {
+                    access_token = row["d_value"].ToString();
+                }
+            }
+        }
+
+        string url = " https://api.weixin.qq.com/cgi-bin/menu/create?access_token="+access_token;
+        string result= HttpPost(url, sb.ToString());
+        Response.Write(result);
     }
 }

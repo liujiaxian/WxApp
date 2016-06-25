@@ -115,7 +115,7 @@ public class GetAccessToken
         HttpWebRequest myRequest =
         (HttpWebRequest)WebRequest.Create(urljson);
 
-        string path = HttpContext.Current.Request.PhysicalApplicationPath;
+        //string path = HttpContext.Current.Request.PhysicalApplicationPath;
         //X509Certificate2 cert = new X509Certificate2(path + WxPayConfig.SSLCERT_PATH, WxPayConfig.SSLCERT_PASSWORD);
         //myRequest.ClientCertificates.Add(cert);
         myRequest.Method = "GET";

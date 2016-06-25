@@ -30,6 +30,9 @@
         <br />
           <asp:Button ID="Button4" runat="server" Height="27px" onclick="Button4_Click" 
             Text="用户登录" Width="95px" />
+        <br />
+        <br />
+        <asp:Button ID="Button5" runat="server" Text="Button" Height="26px" OnClick="Button5_Click" Width="95px" />
     </div>
     </form>
 </body>

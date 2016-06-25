@@ -64,6 +64,8 @@ public partial class _Default : System.Web.UI.Page
         sr.Close();
         fs1.Close();
 
+       
+
         //查询accesstoken
         string sql = "select d_value from T_Configure where d_id=11";
         DataTable tb = OleDbHelper.ExecuteDataTable(sql);
@@ -78,6 +80,9 @@ public partial class _Default : System.Web.UI.Page
         CreateMenu("https://api.weixin.qq.com/cgi-bin/menu/create?access_token=" + accesstoken, menu);
     }
     #endregion
+
+
+
 
     #region 获取微信ip
 
